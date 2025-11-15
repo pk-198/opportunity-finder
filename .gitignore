@@ -1,0 +1,31 @@
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Gmail API Credentials & Tokens
+credentials.json
+token.json
+backend/credentials.json
+backend/token.json
+
+# Environment Variables
+.env
+backend/.env
+frontend/.env
+*.env.local
+
+# Project Documentation (Internal)
+CHANGES.md
+must_follow_rules.md
+todo.md

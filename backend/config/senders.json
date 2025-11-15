@@ -1,0 +1,28 @@
+{
+  "senders": [
+    {
+      "id": "f5bot",
+      "name": "F5bot Reddit Alerts",
+      "email": "admin@f5bot.com",
+      "description": "Reddit keyword monitoring alerts",
+      "expected_volume": "20-100 emails daily",
+      "prompt_key": "f5bot_reddit"
+    },
+    {
+      "id": "haro_main",
+      "name": "HARO - Help A Reporter Out",
+      "email": "haro@helpareporter.com",
+      "description": "Media opportunities from reporters",
+      "expected_volume": "Variable",
+      "prompt_key": "haro_opportunities"
+    },
+    {
+      "id": "haro_peter",
+      "name": "HARO - Peter Shankman",
+      "email": "peter@shankman.com",
+      "description": "HARO updates from founder",
+      "expected_volume": "Variable",
+      "prompt_key": "haro_opportunities"
+    }
+  ]
+}
