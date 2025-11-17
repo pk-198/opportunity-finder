@@ -10,6 +10,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { getTaskStatus, TaskStatus } from '@/lib/api';
 import ProgressBar from '../components/ProgressBar';
 import ResultsDisplay from '../components/ResultsDisplay';
+import EmailDrawer from '../components/EmailDrawer';
 
 export default function AnalysisPage() {
   const searchParams = useSearchParams();
@@ -22,6 +23,7 @@ export default function AnalysisPage() {
   const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null);
   const [error, setError] = useState<string>('');
   const [polling, setPolling] = useState<boolean>(true);
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(true); // Open by default
 
   // Poll for task status every 15 seconds using useEffect
   useEffect(() => {
@@ -51,12 +53,12 @@ export default function AnalysisPage() {
     // Initial fetch
     fetchStatus();
 
-    // Set up polling interval (15 seconds)
+    // Set up polling interval (20 seconds)
     const intervalId = setInterval(() => {
       if (polling) {
         fetchStatus();
       }
-    }, 15000);
+    }, 20000);
 
     // Cleanup interval on unmount
     return () => clearInterval(intervalId);
@@ -68,13 +70,13 @@ export default function AnalysisPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
+    <main className="min-h-screen bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-[80%] ml-auto mr-[420px]"> {/* 80% width, right-aligned, margin for drawer */}
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={handleBackToHome}
-            className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 mb-4"
+            className="inline-flex items-center text-sm text-blue-400 hover:text-blue-300 mb-4"
           >
             <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -82,20 +84,20 @@ export default function AnalysisPage() {
             Back to Home
           </button>
 
-          <h1 className="text-3xl font-bold text-gray-900">Email Analysis Results</h1>
+          <h1 className="text-3xl font-bold text-gray-100">Email Analysis Results</h1>
           {taskId && (
-            <p className="mt-2 text-sm text-gray-600">Task ID: {taskId}</p>
+            <p className="mt-2 text-sm text-gray-300">Task ID: {taskId}</p>
           )}
         </div>
 
         {/* Error Display */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="mb-6 p-4 bg-red-900 border border-red-700 rounded-lg">
             <div className="flex items-start">
-              <svg className="h-5 w-5 text-red-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5 text-red-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="ml-3 text-sm text-red-800">{error}</p>
+              <p className="ml-3 text-sm text-red-200">{error}</p>
             </div>
           </div>
         )}
@@ -103,8 +105,8 @@ export default function AnalysisPage() {
         {/* Loading State */}
         {!taskStatus && !error && (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Loading analysis status...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
+            <p className="mt-4 text-gray-300">Loading analysis status...</p>
           </div>
         )}
 
@@ -112,36 +114,36 @@ export default function AnalysisPage() {
         {taskStatus && (
           <div className="space-y-6">
             {/* Progress Bar */}
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="bg-gray-800 rounded-lg shadow-md p-6">
               <ProgressBar progress={taskStatus.progress} status={taskStatus.status} />
 
               {/* Polling Indicator */}
               {polling && taskStatus.status === 'processing' && (
-                <p className="mt-4 text-sm text-gray-500 text-center">
-                  Polling for updates every 15 seconds...
+                <p className="mt-4 text-sm text-gray-400 text-center">
+                  Polling for updates every 20 seconds...
                 </p>
               )}
 
               {/* Error Message */}
               {taskStatus.error && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded">
-                  <p className="text-sm text-red-800">{taskStatus.error}</p>
+                <div className="mt-4 p-3 bg-red-900 border border-red-700 rounded">
+                  <p className="text-sm text-red-200">{taskStatus.error}</p>
                 </div>
               )}
             </div>
 
             {/* Results Display */}
-            <ResultsDisplay results={taskStatus.results} />
+            <ResultsDisplay results={taskStatus.results} senderId={taskStatus.sender_id} />
 
             {/* Completion Message */}
             {taskStatus.status === 'completed' && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                <p className="text-sm text-green-800 font-medium">
+              <div className="bg-green-900 border border-green-700 rounded-lg p-4 text-center">
+                <p className="text-sm text-green-200 font-medium">
                   Analysis complete! All batches have been processed.
                 </p>
                 <button
                   onClick={handleBackToHome}
-                  className="mt-3 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition-colors"
+                  className="mt-3 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-500 transition-colors"
                 >
                   Start New Analysis
                 </button>
@@ -150,6 +152,13 @@ export default function AnalysisPage() {
           </div>
         )}
       </div>
+
+      {/* Email Drawer - Fixed on right side */}
+      <EmailDrawer
+        results={taskStatus?.results || []}
+        isOpen={drawerOpen}
+        onToggle={() => setDrawerOpen(!drawerOpen)}
+      />
     </main>
   );
 }

@@ -49,11 +49,16 @@ Response: `{"task_id": "abc123", "status": "processing"}`
 
 ### GET /api/status/{task_id}
 Polls for task status and results
-Response: `{"status": "processing", "progress": "2/10", "results": [...]}`
+Response: `{"task_id": "abc123", "sender_id": "f5bot", "status": "processing", "progress": "2/10", "results": [...]}`
+Note: sender_id field added for frontend conditional rendering (Bookface vs F5bot/HARO)
 
 ### GET /api/senders
 Returns available sender configurations
 Response: `{"senders": [{"id": "f5bot", "name": "F5bot Reddit Alerts", ...}]}`
+
+### GET /api/tasks
+Returns all tasks in memory (24hr retention)
+Response: `{"tasks": [{"task_id": "...", "sender_id": "...", "status": "...", ...}]}`
 </example>
 
 <workflow>
@@ -81,3 +86,26 @@ Response: `{"senders": [{"id": "f5bot", "name": "F5bot Reddit Alerts", ...}]}`
 - Never hardcode API keys or credentials
 - Keep code minimal and focused
 </must_follow_rules>
+
+<sender_types>
+## Supported Sender Types (config/senders.json)
+
+### 1. F5bot Reddit Alerts
+- **ID**: `f5bot`
+- **Email**: `admin@f5bot.com`
+- **Purpose**: Reddit keyword monitoring for Dograh AI promotion opportunities
+- **Output**: JSON-parsed opportunities across 4 sections (Direct Engagement, Workflow, Content, Blog Topics)
+
+### 2. HARO Opportunities
+- **ID**: `haro_main`, `haro_peter`
+- **Email**: `haro@helpareporter.com`, `peter@shankman.com`
+- **Purpose**: Media opportunities for Dograh AI exposure
+- **Output**: JSON-parsed opportunities (Relevant Opportunities, Content to Adapt)
+
+### 3. YC Bookface Forum Digest
+- **ID**: `bookface_digest`
+- **Email**: `digest@ycombinator.com`
+- **Purpose**: Identify growth opportunities and insights from YC internal forum
+- **Output**: Markdown format with 5 sections (Growth Hacks, Replicable Content, Commenting, autoRM, Top Threads)
+- **Special**: Uses markdown output (not JSON), 1 email/day, frontend renders with BookfaceResults component
+</sender_types>

@@ -17,8 +17,11 @@ All components use TypeScript with strict typing (no `any` types).
 - `SenderSelector.tsx` - Dropdown for selecting email sender
 - `AnalysisForm.tsx` - Form inputs for email limit and batch size
 - `ProgressBar.tsx` - Visual progress indicator (e.g., "Processing batch 3/10")
-- `ResultsDisplay.tsx` - Container that maps opportunities to OpportunityCard
-- `OpportunityCard.tsx` - Individual card displaying one opportunity
+- `ResultsDisplay.tsx` - Conditional renderer (BookfaceResults for bookface_digest, OpportunityCard for F5bot/HARO)
+- `OpportunityCard.tsx` - Individual card displaying one opportunity (F5bot/HARO JSON format)
+- `BookfaceResults.tsx` - Markdown parser and section-based display (Bookface 5-section format)
+- `EmailDrawer.tsx` - Right-side drawer showing original emails for cross-checking
+- `TaskListDrawer.tsx` - Right-side drawer showing task history (home page)
 </file_map>
 
 <example>
@@ -50,7 +53,40 @@ interface Opportunity {
 
 interface Props {
   opportunity: Opportunity;
+  showBatchInfo?: boolean;
 }
+```
+
+### BookfaceResults
+```typescript
+interface Props {
+  results: BatchResult[]; // Contains raw_markdown from LLM
+}
+
+// Parses markdown sections by emoji headers:
+// # 📈 GROWTH HACKS & LEARNINGS
+// # 📝 REPLICABLE CONTENT IDEAS
+// # 💬 COMMENTING OPPORTUNITIES
+// # 🏗️ AUTORM RELEVANT THREADS
+// # 🎯 TOP 2 THREADS COLLECTION
+
+// Each section renders as collapsible panel with:
+// - Section title with emoji
+// - Item count
+// - Collapsible content (default open)
+// - Item cards with priority badges
+```
+
+### ResultsDisplay
+```typescript
+interface Props {
+  results: BatchResult[];
+  senderId?: string; // For conditional rendering
+}
+
+// Conditional logic:
+// if (senderId === 'bookface_digest') return <BookfaceResults />
+// else return <OpportunityCard /> display
 ```
 </example>
 

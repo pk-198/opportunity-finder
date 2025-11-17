@@ -1,19 +1,23 @@
 # FastAPI and server
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-pydantic==2.5.3
+# FastAPI 0.121.2+ with Python 3.13 support
+fastapi==0.121.2
+uvicorn[standard]==0.38.0
+pydantic==2.12.4
+python-dotenv==1.0.1
 
 # Google API for Gmail integration
-google-api-python-client==2.116.0
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.0
+# Latest versions with Python 3.13 support
+google-api-python-client==2.187.0
+google-auth-httplib2==0.2.1
+google-auth-oauthlib==1.2.3
 
 # LLM providers
-openai==1.10.0
-groq==0.4.2
+# OpenAI 2.x with latest API features
+openai==2.8.0
+groq==0.34.1
 
 # YAML parsing for prompts
-PyYAML==6.0.1
+PyYAML==6.0.3
 
 # HTTP client for API calls
-httpx==0.26.0
+httpx==0.28.1

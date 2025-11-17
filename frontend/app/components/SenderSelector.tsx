@@ -20,7 +20,7 @@ export default function SenderSelector({
 }: SenderSelectorProps) {
   return (
     <div className="w-full">
-      <label htmlFor="sender" className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor="sender" className="block text-sm font-medium text-gray-300 mb-2">
         Email Sender
       </label>
       <select
@@ -28,7 +28,7 @@ export default function SenderSelector({
         value={selectedId}
         onChange={(e) => onSelect(e.target.value)}
         disabled={disabled}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-800 disabled:cursor-not-allowed"
       >
         <option value="">Select a sender...</option>
         {senders.map((sender) => (

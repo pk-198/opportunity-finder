@@ -4,7 +4,6 @@ ALL execution flows through this module - coordinates email fetching, LLM analys
 """
 
 import logging
-import asyncio
 from typing import Dict, List
 from datetime import datetime
 
@@ -18,7 +17,7 @@ import prompts
 logger = logging.getLogger(__name__)
 
 
-async def run_analysis_workflow(
+def run_analysis_workflow(
     task_id: str,
     sender_id: str,
     sender_email: str,
@@ -28,6 +27,13 @@ async def run_analysis_workflow(
 ) -> None:
     """
     Central orchestrator - executes complete email analysis workflow.
+
+    NOTE: This is a SYNCHRONOUS function (not async) because it contains blocking I/O:
+    - Gmail API calls (email_service.fetch_emails)
+    - LLM API calls (llm_service.analyze_with_llm)
+    - File I/O operations
+
+    FastAPI's BackgroundTasks runs this in a thread pool for non-blocking execution.
 
     Workflow steps:
     1. Fetch email THREADS from Gmail
@@ -81,7 +87,7 @@ async def run_analysis_workflow(
         logger.info(f"[{task_id}] Split into {total_batches} batches of size {batch_size}")
 
         # Step 3: Load prompts for LLM
-        logger.info(f"[{task_id}] Loading prompts for key: {prompt_key}")
+        logger.debug(f"[{task_id}] Loading prompts for key: {prompt_key}")
         prompt_data = prompts.get_prompt(prompt_key)
         system_prompt = prompt_data["system_prompt"]
 
@@ -91,7 +97,7 @@ async def run_analysis_workflow(
 
             try:
                 # Combine threads in batch preserving hyperlinks
-                logger.info(f"[{task_id}] Combining {len(batch)} threads")
+                logger.debug(f"[{task_id}] Combining {len(batch)} threads")
                 combined_emails = email_service.combine_emails(batch)
 
                 # Strip metadata using LLM (LLM Call #1)
@@ -102,6 +108,7 @@ async def run_analysis_workflow(
                 )
 
                 # Format user prompt with cleaned email content
+                logger.debug(f"[{task_id}] Formatting user prompt with cleaned content")
                 user_prompt = prompts.format_user_prompt(prompt_key, cleaned_emails)
 
                 # Call LLM for analysis (LLM Call #2) - 180s timeout
@@ -112,20 +119,62 @@ async def run_analysis_workflow(
                     task_id=task_id
                 )
 
+                # Save raw LLM response to file for debugging
+                import os
+                from pathlib import Path
+                debug_dir = Path(__file__).parent / "debug_outputs"
+                debug_dir.mkdir(exist_ok=True)
+                debug_file = debug_dir / f"{task_id}_batch{batch_num}_llm_call2_raw.txt"
+                with open(debug_file, "w", encoding="utf-8") as f:
+                    f.write(f"=== LLM Call #2 Raw Output ===\n")
+                    f.write(f"Task ID: {task_id}\n")
+                    f.write(f"Batch: {batch_num}/{total_batches}\n")
+                    f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                    f.write(f"Response Length: {len(llm_response)} chars\n")
+                    f.write(f"\n{'='*60}\n\n")
+                    f.write(llm_response)
+                logger.info(f"[{task_id}] Raw LLM output saved to: {debug_file}")
+
                 # Parse markdown to JSON (LLM Call #3)
                 logger.info(f"[{task_id}] Parsing markdown to JSON (LLM Call #3)")
+
+                # Save input to parsing LLM
+                debug_file_parse_input = debug_dir / f"{task_id}_batch{batch_num}_llm_call3_input.txt"
+                with open(debug_file_parse_input, "w", encoding="utf-8") as f:
+                    f.write(f"=== LLM Call #3 Input (Markdown to be parsed) ===\n")
+                    f.write(f"Task ID: {task_id}\n")
+                    f.write(f"Batch: {batch_num}/{total_batches}\n")
+                    f.write(f"Input Length: {len(llm_response)} chars\n")
+                    f.write(f"\n{'='*60}\n\n")
+                    f.write(llm_response)
+                logger.info(f"[{task_id}] Parsing input saved to: {debug_file_parse_input}")
+
                 parsed_response = llm_service.parse_markdown_to_json(
                     markdown_text=llm_response,
                     task_id=task_id
                 )
 
-                # Store batch result
+                # Save final parsed JSON output
+                debug_file_parsed = debug_dir / f"{task_id}_batch{batch_num}_llm_call3_output.json"
+                with open(debug_file_parsed, "w", encoding="utf-8") as f:
+                    f.write(parsed_response)
+                logger.info(f"[{task_id}] Parsing output saved to: {debug_file_parsed}")
+
+                # Store batch result with original emails for drawer
                 batch_result = {
                     "batch_number": batch_num,
                     "total_batches": total_batches,
                     "threads_in_batch": len(batch),
                     "analysis": parsed_response,  # Store parsed JSON
                     "raw_markdown": llm_response,  # Also keep raw markdown
+                    "original_emails": [  # Store original emails for cross-checking
+                        {
+                            "subject": email.get("subject", "No Subject"),
+                            "body": email.get("body", ""),
+                            "date": email.get("date", "Unknown Date")
+                        }
+                        for email in batch
+                    ],
                     "processed_at": datetime.now().isoformat()
                 }
 
@@ -155,7 +204,7 @@ async def run_analysis_workflow(
 
         # Step 5: Mark task as completed
         elapsed = (datetime.now() - start_time).total_seconds()
-        logger.info(f"[{task_id}] All batches processed - elapsed: {elapsed:.1f}s")
+        logger.info(f"[{task_id}] All batches processed successfully - elapsed: {elapsed:.1f}s")
 
         task_manager.update_task(
             task_id,
@@ -196,44 +245,3 @@ def _create_batches(items: List, batch_size: int) -> List[List]:
         batches.append(batch)
 
     return batches
-
-
-def start_analysis(
-    sender_id: str,
-    sender_email: str,
-    prompt_key: str,
-    email_limit: int,
-    batch_size: int
-) -> str:
-    """
-    Start email analysis workflow asynchronously.
-    Creates task and launches background processing.
-
-    Args:
-        sender_id: Sender identifier
-        sender_email: Email address to analyze
-        prompt_key: Prompt configuration key
-        email_limit: Maximum emails to process
-        batch_size: Emails per batch
-
-    Returns:
-        Task ID for tracking progress
-    """
-    # Create task for tracking
-    task_id = task_manager.create_task(sender_id, email_limit, batch_size)
-
-    logger.info(f"[{task_id}] Analysis started - launching async workflow")
-
-    # Launch workflow in background using asyncio
-    asyncio.create_task(
-        run_analysis_workflow(
-            task_id=task_id,
-            sender_id=sender_id,
-            sender_email=sender_email,
-            prompt_key=prompt_key,
-            email_limit=email_limit,
-            batch_size=batch_size
-        )
-    )
-
-    return task_id

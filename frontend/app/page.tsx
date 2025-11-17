@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { getSenders, startAnalysis, Sender } from '@/lib/api';
 import SenderSelector from './components/SenderSelector';
 import AnalysisForm from './components/AnalysisForm';
+import TaskListDrawer from './components/TaskListDrawer';
 
 export default function HomePage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [loadingSenders, setLoadingSenders] = useState<boolean>(true);
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(true); // Task drawer open by default
 
   // Fetch senders on component mount using useEffect
   useEffect(() => {
@@ -75,32 +77,32 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-4xl font-bold text-gray-100 mb-2">
             Email Analysis Tool
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg text-gray-300">
             Analyze emails with AI-powered insights
           </p>
         </div>
 
         {/* Main Card */}
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div className="bg-gray-800 rounded-lg shadow-md p-8">
           {/* Loading Senders State */}
           {loadingSenders && (
             <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Loading senders...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+              <p className="mt-4 text-gray-300">Loading senders...</p>
             </div>
           )}
 
           {/* Error Display */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="mb-6 p-4 bg-red-900 border border-red-700 rounded-lg">
+              <p className="text-sm text-red-200">{error}</p>
             </div>
           )}
 
@@ -129,11 +131,17 @@ export default function HomePage() {
         </div>
 
         {/* Info Section */}
-        <div className="mt-8 text-center text-sm text-gray-500">
+        <div className="mt-8 text-center text-sm text-gray-400">
           <p>This tool analyzes Gmail emails and provides actionable insights.</p>
           <p className="mt-2">Results are stored in memory for 24 hours.</p>
         </div>
       </div>
+
+      {/* Task History Drawer - Fixed on right side */}
+      <TaskListDrawer
+        isOpen={drawerOpen}
+        onToggle={() => setDrawerOpen(!drawerOpen)}
+      />
     </main>
   );
 }

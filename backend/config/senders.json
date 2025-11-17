@@ -23,6 +23,14 @@
       "description": "HARO updates from founder",
       "expected_volume": "Variable",
       "prompt_key": "haro_opportunities"
+    },
+    {
+      "id": "bookface_digest",
+      "name": "YC Bookface Forum Digest",
+      "email": "digest@ycombinator.com",
+      "description": "YCombinator internal forum discussion summaries",
+      "expected_volume": "1 email daily",
+      "prompt_key": "bookface_digest"
     }
   ]
 }

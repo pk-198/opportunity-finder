@@ -5,26 +5,33 @@ Provides REST API endpoints for triggering analysis and retrieving results.
 
 import logging
 import json
+import os
 from pathlib import Path
 from typing import Dict, List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Internal service imports
 import workflow
 import task_manager
 
-# Configure logging with detailed format
+# Configure logging without timestamps (cleaner output)
+# Read log level from environment (DEBUG, INFO, WARNING, ERROR)
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    level=getattr(logging, log_level, logging.INFO),
+    format="%(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+logger.info(f"Logging configured - level={log_level}")
 
 
 # Pydantic models for request/response validation
@@ -44,6 +51,7 @@ class AnalysisResponse(BaseModel):
 class TaskStatusResponse(BaseModel):
     """Response model for task status queries."""
     task_id: str
+    sender_id: str  # Sender identifier (for frontend conditional rendering)
     status: str
     progress: str
     results: List[Dict]
@@ -129,7 +137,7 @@ app.add_middleware(
 
 # API Endpoints
 @app.post("/api/analyze", response_model=AnalysisResponse)
-async def start_analysis(request: AnalysisRequest) -> AnalysisResponse:
+async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundTasks) -> AnalysisResponse:
     """
     Start email analysis workflow.
 
@@ -153,8 +161,17 @@ async def start_analysis(request: AnalysisRequest) -> AnalysisResponse:
             logger.error(f"Invalid sender_id: {request.sender_id}")
             raise HTTPException(status_code=400, detail=f"Invalid sender_id: {request.sender_id}")
 
-        # Start workflow asynchronously
-        task_id = workflow.start_analysis(
+        # Create task ID first
+        task_id = task_manager.create_task(
+            sender_id=sender["id"],
+            email_limit=request.email_limit,
+            batch_size=request.batch_size
+        )
+
+        # Add background task (truly non-blocking)
+        background_tasks.add_task(
+            workflow.run_analysis_workflow,
+            task_id=task_id,
             sender_id=sender["id"],
             sender_email=sender["email"],
             prompt_key=sender["prompt_key"],
@@ -203,6 +220,7 @@ async def get_task_status(task_id: str) -> TaskStatusResponse:
 
     return TaskStatusResponse(
         task_id=task["task_id"],
+        sender_id=task["sender_id"],
         status=task["status"],
         progress=task["progress"],
         results=task["results"],
@@ -232,6 +250,43 @@ async def get_senders() -> SendersResponse:
     except Exception as e:
         logger.error(f"Failed to load senders: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to load senders: {str(e)}")
+
+
+@app.get("/api/tasks")
+async def get_all_tasks():
+    """
+    Get list of all tasks in memory (24-hour retention).
+
+    Returns:
+        List of tasks with metadata (task_id, status, created_at, etc.)
+    """
+    logger.info("GET /api/tasks")
+
+    try:
+        tasks = task_manager.get_all_tasks()
+
+        # Return simplified task list (no full results, just metadata)
+        task_list = [
+            {
+                "task_id": task["task_id"],
+                "sender_id": task["sender_id"],
+                "status": task["status"],
+                "progress": task["progress"],
+                "created_at": task["created_at"].isoformat(),
+                "updated_at": task["updated_at"].isoformat(),
+                "email_limit": task["email_limit"],
+                "batch_size": task["batch_size"],
+                "result_count": len(task["results"]),
+            }
+            for task in tasks
+        ]
+
+        logger.info(f"Returning {len(task_list)} tasks")
+        return {"tasks": task_list}
+
+    except Exception as e:
+        logger.error(f"Failed to get tasks: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get tasks: {str(e)}")
 
 
 @app.get("/health")

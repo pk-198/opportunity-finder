@@ -49,35 +49,53 @@ def _get_gmail_service():
     token_path = backend_dir / token_file
 
     # Load existing token if available
+    logger.debug(f"[AUTH] Checking for existing token at: {token_path}")
     if token_path.exists():
-        logger.info(f"Loading existing token from {token_path}")
+        logger.info(f"[AUTH] ✓ Token file found, loading credentials")
         creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
+        logger.info(f"[AUTH] ✓ Credentials loaded from token file")
+        logger.debug(f"[AUTH] Credential status - Valid: {creds.valid}, Expired: {creds.expired if hasattr(creds, 'expired') else 'N/A'}")
+    else:
+        logger.info(f"[AUTH] No existing token found")
 
     # If no valid credentials, prompt for login
     if not creds or not creds.valid:
+        logger.info(f"[AUTH] Credentials need refresh or new login")
         if creds and creds.expired and creds.refresh_token:
-            logger.info("Refreshing expired token")
-            creds.refresh(Request())
+            logger.info("[AUTH] Refreshing expired token...")
+            try:
+                creds.refresh(Request())
+                logger.info("[AUTH] ✓ Token refreshed successfully")
+            except Exception as e:
+                logger.error(f"[AUTH] ✗ Token refresh failed: {e}")
+                raise
         else:
+            logger.info("[AUTH] New OAuth flow required")
             if not creds_path.exists():
-                logger.error(f"Credentials file not found: {creds_path}")
+                logger.error(f"[AUTH] ✗ Credentials file not found: {creds_path}")
                 raise FileNotFoundError(
                     f"Gmail credentials file not found: {creds_path}. "
                     "Download from Google Cloud Console."
                 )
 
-            logger.info("Starting OAuth flow - user login required")
+            logger.info("[AUTH] Starting OAuth flow - user login required")
             flow = InstalledAppFlow.from_client_secrets_file(str(creds_path), SCOPES)
+            logger.info("[AUTH] Opening browser for OAuth consent...")
             creds = flow.run_local_server(port=0)
+            logger.info("[AUTH] ✓ OAuth flow completed successfully")
 
         # Save credentials for future use
+        logger.info(f"[AUTH] Saving credentials to {token_path}")
         with open(token_path, "w") as token:
             token.write(creds.to_json())
-        logger.info(f"Token saved to {token_path}")
+        logger.info(f"[AUTH] ✓ Token saved successfully")
 
-    # Build and return Gmail service using googleapiclient
+    # Build Gmail service with credentials only
+    # The build() function will automatically create a requests-based transport
+    # when only credentials are provided (no http parameter)
+    logger.info("[AUTH] Building Gmail API service v1...")
     service = build("gmail", "v1", credentials=creds)
-    logger.info("Gmail service authenticated successfully")
+    logger.info("[AUTH] ✓ Gmail service built successfully")
 
     return service
 
@@ -105,52 +123,95 @@ def fetch_emails(
     """
     log_prefix = f"[{task_id}]" if task_id else ""
 
-    logger.info(f"{log_prefix} Fetching email THREADS from={sender_email}, limit={max_results}")
+    logger.info(f"{log_prefix} ========== FETCH EMAILS START ==========")
+    logger.info(f"{log_prefix} [FETCH] Target sender: {sender_email}")
+    logger.info(f"{log_prefix} [FETCH] Max results: {max_results}")
 
     try:
+        # Step 1: Get authenticated Gmail service
+        logger.info(f"{log_prefix} [FETCH] Step 1: Getting authenticated Gmail service")
         service = _get_gmail_service()
+        logger.info(f"{log_prefix} [FETCH] ✓ Gmail service obtained")
 
-        # Query THREADS from sender using Gmail search syntax
+        # Step 2: Query THREADS from sender using Gmail search syntax
         query = f"from:{sender_email}"
-        results = service.users().threads().list(
-            userId="me",
-            q=query,
-            maxResults=max_results
-        ).execute()
+        logger.info(f"{log_prefix} [FETCH] Step 2: Querying Gmail API for threads")
+        logger.info(f"{log_prefix} [FETCH] Query: {query}")
+        logger.info(f"{log_prefix} [FETCH] Executing threads().list() API call...")
+
+        try:
+            results = service.users().threads().list(
+                userId="me",
+                q=query,
+                maxResults=max_results
+            ).execute()
+            logger.info(f"{log_prefix} [FETCH] ✓ API call successful")
+        except Exception as api_error:
+            logger.error(f"{log_prefix} [FETCH] ✗ API call failed: {api_error}")
+            logger.error(f"{log_prefix} [FETCH] Error type: {type(api_error).__name__}")
+            raise
 
         threads = results.get("threads", [])
+        logger.info(f"{log_prefix} [FETCH] API response received - {len(threads)} threads found")
 
         if not threads:
-            logger.warning(f"{log_prefix} No threads found from {sender_email}")
+            logger.warning(f"{log_prefix} [FETCH] ⚠ No threads found from {sender_email}")
+            logger.info(f"{log_prefix} ========== FETCH EMAILS END (No Results) ==========")
             return []
 
-        logger.info(f"{log_prefix} Found {len(threads)} threads, fetching details...")
-
+        # Step 3: Fetch full details for each thread
+        logger.info(f"{log_prefix} [FETCH] Step 3: Fetching full details for {len(threads)} threads")
         thread_data_list = []
+
         for i, thread in enumerate(threads, 1):
+            thread_id = thread["id"]
+            logger.debug(f"{log_prefix} [FETCH] Processing thread {i}/{len(threads)} - ID: {thread_id[:12]}...")
+
             try:
                 # Fetch full thread details with all messages using Gmail API
+                logger.debug(f"{log_prefix} [FETCH]   → Calling threads().get() for thread {i}")
                 thread_detail = service.users().threads().get(
                     userId="me",
-                    id=thread["id"],
+                    id=thread_id,
                     format="full"
                 ).execute()
+                logger.debug(f"{log_prefix} [FETCH]   ✓ Thread details fetched")
 
+                # Parse thread and extract all messages
+                logger.debug(f"{log_prefix} [FETCH]   → Parsing thread and extracting messages")
                 thread_data = _parse_thread(thread_detail)
+                logger.debug(f"{log_prefix} [FETCH]   ✓ Thread parsed - {thread_data['message_count']} messages, {len(thread_data['body'])} chars")
+                logger.debug(f"{log_prefix} [FETCH]   Subject: {thread_data['subject'][:60]}...")
+
                 thread_data_list.append(thread_data)
 
-                if i % 10 == 0:
-                    logger.info(f"{log_prefix} Fetched {i}/{len(threads)} threads")
+                # Progress logging every 5 threads
+                if i % 5 == 0:
+                    logger.info(f"{log_prefix} [FETCH] Progress: {i}/{len(threads)} threads fetched ({(i/len(threads)*100):.1f}%)")
 
             except HttpError as e:
-                logger.error(f"{log_prefix} Failed to fetch thread {thread['id']}: {e}")
+                logger.error(f"{log_prefix} [FETCH]   ✗ Failed to fetch thread {thread_id}: {e}")
+                logger.error(f"{log_prefix} [FETCH]   Error code: {e.resp.status if hasattr(e, 'resp') else 'unknown'}")
+                continue
+            except Exception as e:
+                logger.error(f"{log_prefix} [FETCH]   ✗ Unexpected error parsing thread {thread_id}: {e}")
+                logger.error(f"{log_prefix} [FETCH]   Error type: {type(e).__name__}")
                 continue
 
-        logger.info(f"{log_prefix} Successfully fetched {len(thread_data_list)} threads")
+        logger.info(f"{log_prefix} [FETCH] ========== FETCH SUMMARY ==========")
+        logger.info(f"{log_prefix} [FETCH] Total threads found: {len(threads)}")
+        logger.info(f"{log_prefix} [FETCH] Successfully parsed: {len(thread_data_list)}")
+        logger.info(f"{log_prefix} [FETCH] Failed/Skipped: {len(threads) - len(thread_data_list)}")
+        logger.info(f"{log_prefix} ========== FETCH EMAILS END (Success) ==========")
+
         return thread_data_list
 
     except Exception as e:
-        logger.error(f"{log_prefix} Gmail API error: {str(e)}")
+        logger.error(f"{log_prefix} [FETCH] ========== FETCH EMAILS FAILED ==========")
+        logger.error(f"{log_prefix} [FETCH] ✗ Gmail API error: {str(e)}")
+        logger.error(f"{log_prefix} [FETCH] Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"{log_prefix} [FETCH] Traceback:\n{traceback.format_exc()}")
         raise Exception(f"Failed to fetch email threads: {str(e)}")
 
 
@@ -317,7 +378,7 @@ def strip_metadata_with_llm(email_text: str, task_id: Optional[str] = None) -> s
     """
     log_prefix = f"[{task_id}]" if task_id else ""
 
-    logger.info(f"{log_prefix} Stripping metadata using LLM ({len(email_text)} chars)")
+    logger.debug(f"{log_prefix} Stripping metadata using LLM ({len(email_text)} chars)")
 
     # System prompt for metadata stripping
     system_prompt = """You are an email cleaning assistant. Your job is to remove email metadata and keep only the actual message content.
@@ -348,7 +409,7 @@ Return ONLY the cleaned message content. If multiple messages, separate them wit
             task_id=task_id
         )
 
-        logger.info(f"{log_prefix} Metadata stripped: {len(email_text)} → {len(cleaned_text)} chars")
+        logger.debug(f"{log_prefix} Metadata stripped: {len(email_text)} → {len(cleaned_text)} chars")
 
         return cleaned_text
 
@@ -385,6 +446,6 @@ def combine_emails(emails: List[Dict[str, str]]) -> str:
 
     result = "\n".join(combined)
 
-    logger.info(f"Combined {len(emails)} emails/threads into {len(result)} chars")
+    logger.debug(f"Combined {len(emails)} emails/threads into {len(result)} chars")
 
     return result

@@ -42,7 +42,8 @@ def create_task(sender_id: str, email_limit: int, batch_size: int) -> str:
         "updated_at": datetime.now(),
     }
 
-    logger.info(f"[{task_id}] Created task for sender={sender_id}, limit={email_limit}, batch={batch_size}")
+    logger.info(f"Task created: {task_id}")
+    logger.debug(f"[{task_id}] Sender={sender_id}, limit={email_limit}, batch={batch_size}")
 
     return task_id
 
@@ -89,7 +90,7 @@ def update_task(task_id: str, **updates) -> bool:
     # Always update timestamp
     _tasks[task_id]["updated_at"] = datetime.now()
 
-    logger.info(f"[{task_id}] Updated: {', '.join(updates.keys())}")
+    logger.debug(f"[{task_id}] Updated: {', '.join(updates.keys())}")
 
     return True
 
@@ -112,7 +113,7 @@ def add_result(task_id: str, result: Dict[str, Any]) -> bool:
     _tasks[task_id]["results"].append(result)
     _tasks[task_id]["updated_at"] = datetime.now()
 
-    logger.info(f"[{task_id}] Added result (total: {len(_tasks[task_id]['results'])})")
+    logger.debug(f"[{task_id}] Added result (total: {len(_tasks[task_id]['results'])})")
 
     return True
 
@@ -138,7 +139,7 @@ def cleanup_old_tasks(hours: int = 24) -> int:
     # Delete old tasks
     for task_id in tasks_to_delete:
         del _tasks[task_id]
-        logger.info(f"[{task_id}] Deleted - older than {hours} hours")
+        logger.debug(f"[{task_id}] Deleted - older than {hours} hours")
 
     if tasks_to_delete:
         logger.info(f"Cleanup complete: {len(tasks_to_delete)} tasks deleted")

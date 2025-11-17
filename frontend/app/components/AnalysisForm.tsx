@@ -29,38 +29,56 @@ export default function AnalysisForm({
     <form onSubmit={handleSubmit} className="w-full space-y-4">
       {/* Email Limit Input */}
       <div>
-        <label htmlFor="emailLimit" className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor="emailLimit" className="block text-sm font-medium text-gray-300 mb-2">
           Number of Emails
         </label>
         <input
           type="number"
           id="emailLimit"
           value={emailLimit}
-          onChange={(e) => onEmailLimitChange(parseInt(e.target.value) || 0)}
+          onChange={(e) => {
+            const value = e.target.value;
+            // Allow empty string or valid numbers
+            if (value === '') {
+              onEmailLimitChange(0);
+            } else {
+              const parsed = parseInt(value);
+              onEmailLimitChange(isNaN(parsed) ? 0 : parsed);
+            }
+          }}
           min="1"
           max="500"
           disabled={disabled}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-800 disabled:cursor-not-allowed"
         />
-        <p className="mt-1 text-sm text-gray-500">Maximum number of emails to analyze (1-500)</p>
+        <p className="mt-1 text-sm text-gray-400">Maximum number of emails to analyze (1-500)</p>
       </div>
 
       {/* Batch Size Input */}
       <div>
-        <label htmlFor="batchSize" className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor="batchSize" className="block text-sm font-medium text-gray-300 mb-2">
           Batch Size
         </label>
         <input
           type="number"
           id="batchSize"
           value={batchSize}
-          onChange={(e) => onBatchSizeChange(parseInt(e.target.value) || 0)}
+          onChange={(e) => {
+            const value = e.target.value;
+            // Allow empty string or valid numbers
+            if (value === '') {
+              onBatchSizeChange(0);
+            } else {
+              const parsed = parseInt(value);
+              onBatchSizeChange(isNaN(parsed) ? 0 : parsed);
+            }
+          }}
           min="1"
           max="50"
           disabled={disabled}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-800 disabled:cursor-not-allowed"
         />
-        <p className="mt-1 text-sm text-gray-500">Number of emails to process per batch (1-50)</p>
+        <p className="mt-1 text-sm text-gray-400">Number of emails to process per batch (1-50)</p>
       </div>
 
       {/* Submit Button */}

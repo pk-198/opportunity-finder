@@ -24,14 +24,21 @@ export interface AnalysisResponse {
 export interface BatchResult {
   batch_number: number;
   total_batches: number;
-  emails_in_batch: number;
-  analysis?: string;
-  error?: string;
-  processed_at: string;
+  threads_in_batch: number; // Number of email threads in this batch
+  analysis?: string; // JSON string with parsed analysis
+  raw_markdown?: string; // Raw markdown output from LLM
+  original_emails?: Array<{ // Original email content for cross-checking
+    subject: string;
+    body: string;
+    date: string;
+  }>;
+  error?: string; // Error message if batch failed
+  processed_at: string; // ISO timestamp
 }
 
 export interface TaskStatus {
   task_id: string;
+  sender_id: string; // Sender identifier (for conditional rendering)
   status: 'processing' | 'completed' | 'failed';
   progress: string;
   results: BatchResult[];
@@ -108,6 +115,38 @@ export async function getSenders(): Promise<SendersResponse> {
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail || 'Failed to get senders');
+  }
+
+  return response.json();
+}
+
+/**
+ * Task metadata for task list display
+ */
+export interface TaskMetadata {
+  task_id: string;
+  sender_id: string;
+  status: 'processing' | 'completed' | 'failed';
+  progress: string;
+  created_at: string;
+  updated_at: string;
+  email_limit: number;
+  batch_size: number;
+  result_count: number;
+}
+
+/**
+ * Get list of all tasks in memory (24-hour retention).
+ * Used for task history drawer.
+ *
+ * @returns List of task metadata
+ */
+export async function getAllTasks(): Promise<{ tasks: TaskMetadata[] }> {
+  const response = await fetch(`${API_BASE_URL}/api/tasks`);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to get tasks');
   }
 
   return response.json();

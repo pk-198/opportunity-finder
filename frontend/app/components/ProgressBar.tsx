@@ -45,12 +45,12 @@ export default function ProgressBar({ progress, status }: ProgressBarProps) {
     <div className="w-full">
       {/* Status Text */}
       <div className="flex justify-between items-center mb-2">
-        <span className="text-sm font-medium text-gray-700">{getStatusText()}</span>
-        <span className="text-sm font-medium text-gray-700">{percentage}%</span>
+        <span className="text-sm font-medium text-gray-200">{getStatusText()}</span>
+        <span className="text-sm font-medium text-gray-200">{percentage}%</span>
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+      <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
         <div
           className={`h-full ${getStatusColor()} transition-all duration-300 ease-out`}
           style={{ width: `${percentage}%` }}
