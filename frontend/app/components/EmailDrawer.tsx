@@ -53,7 +53,7 @@ export default function EmailDrawer({ results, isOpen, onToggle }: EmailDrawerPr
                       Batch {result.batch_number} of {result.total_batches}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {result.threads_in_batch} {result.threads_in_batch === 1 ? 'thread' : 'threads'}
+                      {result.thread_count_in_batch} {result.thread_count_in_batch === 1 ? 'thread' : 'threads'}
                     </p>
                   </div>
 

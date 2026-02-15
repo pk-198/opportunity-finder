@@ -103,7 +103,7 @@ const senders = await getSenders();
 
 ### Type Fixes
 **Fixed**: API type mismatch
-- `BatchResult.emails_in_batch` renamed to `threads_in_batch` (matches backend)
+- `BatchResult.emails_in_batch` renamed to `thread_count_in_batch` (matches backend)
 - Added inline comments to all type fields
 
 ### Gmail API Transport Fix
