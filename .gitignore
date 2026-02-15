@@ -37,3 +37,4 @@ CLEANUP_SUMMARY.md
 
 # Claude Code session data
 .claude/
+frontend/.env.example

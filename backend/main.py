@@ -153,7 +153,7 @@ app.add_middleware(
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):
     """Reject /api/* requests missing a valid X-API-Key header."""
-    if request.url.path.startswith("/api/"):
+    if request.url.path.startswith("/api/") and request.method != "OPTIONS":
         key = request.headers.get("X-API-Key")
         if key != API_KEY:
             return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})

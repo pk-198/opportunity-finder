@@ -12,7 +12,7 @@ Provides REST API for frontend to trigger analysis and poll for results.
 </system_context>
 
 <critical_notes>
-- **API key required** - `API_KEY` env var must be set or backend refuses to start. All `/api/*` routes require `X-API-Key` header.
+- **API key required** - `API_KEY` env var must be set or backend refuses to start. All `/api/*` routes require `X-API-Key` header. OPTIONS requests are exempt so CORS preflight passes through.
 - **CORS lockdown** - Set `CORS_ORIGINS` env var (comma-separated) for production. Falls back to `["*"]` for local dev.
 - **workflow.py is the central orchestrator** - all execution flows through it
 - **Preserve hyperlinks** when extracting email content
