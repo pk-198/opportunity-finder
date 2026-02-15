@@ -9,10 +9,22 @@ interface OpportunityCardProps {
 }
 
 // Source badge component (Reddit vs Hacker News)
-function SourceBadge({ source }: { source?: string }) {
+function SourceBadge({ source }: { source?: any }) {
   if (!source) return null;
 
-  const isHN = source.toLowerCase().includes('hacker') || source.toLowerCase().includes('hn');
+  // Normalize source to string (handles object, array, or string)
+  let sourceStr = '';
+  if (typeof source === 'string') {
+    sourceStr = source;
+  } else if (typeof source === 'object') {
+    // If source is object like {text: "Reddit"}, extract the value
+    sourceStr = JSON.stringify(source);
+  } else {
+    sourceStr = String(source);
+  }
+
+  const sourceStrLower = sourceStr.toLowerCase();
+  const isHN = sourceStrLower.includes('hacker') || sourceStrLower.includes('hn');
   const colorClass = isHN
     ? 'bg-orange-900 text-orange-200 border border-orange-700'
     : 'bg-blue-900 text-blue-200 border border-blue-700';

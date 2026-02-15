@@ -5,6 +5,7 @@
 
 import type { Metadata } from 'next'
 import './globals.css'
+import AuthGate from './components/AuthGate'
 
 export const metadata: Metadata = {
   title: 'Email Analysis Tool',
@@ -19,7 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <AuthGate>{children}</AuthGate>
       </body>
     </html>
   )

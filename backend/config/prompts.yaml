@@ -28,6 +28,31 @@ f5bot_reddit:
     # Your Task
     Analyze Reddit discussions and identify opportunities in **FOUR DISTINCT SECTIONS**:
 
+    # PRIORITY DISTRIBUTION (STRICT - FOLLOW THESE PERCENTAGES)
+    **ULTRA CRITICAL:** Most items should be Low priority. Be EXTREMELY conservative with High and Medium.
+
+    - **High Priority: 1-5% of items** (EXTREMELY RARE - only perfect, can't-miss opportunities)
+      * PERFECT fit for Dograh AI (explicitly asking for voice AI solutions)
+      * IMMEDIATE and CRYSTAL CLEAR opportunity
+      * High engagement + direct relevance to voice AI/calling
+      * Would be negligent to ignore
+
+    - **Medium Priority: 5-10% of items** (good opportunities, worth pursuing)
+      * Good relevance but not perfect
+      * Decent engagement, reasonable fit
+      * Worth pursuing but not urgent
+
+    - **Low Priority: 85-90%+ of items** (VAST MAJORITY - everything else)
+      * Tangentially relevant
+      * Low engagement or unclear fit
+      * Nice-to-have, not must-have
+      * **DEFAULT for most items**
+
+    **DECISION RULES:**
+    - When in doubt between High and Medium → choose Medium
+    - When in doubt between Medium and Low → choose Low
+    - If not obviously High or Medium → choose Low
+
     ## Section 1: Direct Engagement Opportunities
     Find posts about voice AI, AI calling, or conversational AI where we can directly engage or send DMs.
     Posts asking about voice AI, discussing voice ai companies/tools, AI calling, or conversational AI usecases and solutions or anything else where it makes sense for me to promote dograh AI. Also I will be sending DMs to some of the more relevant post authors.
@@ -46,14 +71,31 @@ f5bot_reddit:
 
     ## Section 2: Workflow Opportunities
     Find posts from any industry (restaurants, customer service, healthcare, real estate, etc.) where people are asking for help with automation or want to build bots. Idea is to Focus on scenarios where a pre-built voice AI workflow could be dropped (i can build any use case voice bot in under 1min adn share there) . i will position myself as an voice ai agency or a voice ai bot builder.
-    For each opportunity provide same format as Section 1.
+    For each opportunity provide (use simple english):
+    - Source (identify if this is from "Reddit" or "Hacker News")
+    - Link (extract from email)
+    - Post title
+    - Subreddit name (for Reddit) OR "Hacker News" (for HN posts)
+    - Brief context (2-3 sentences maximum)
+    - Comment Draft (single comment sharing workflow link - helpful/solution-focused tone)
+    - Priority (High/Medium/Low)
 
     ## Section 3: Content to Adapt
     Find popular posts that we can rewrite with our own angle. Popular posts about voice/AI calling or another domain that I can rewrite with my own angle - or rewrite for voice ai or ai calling domain. Include BOTH:
     - Posts NOT about voice AI that we can adapt TO voice AI angle
     - Posts about voice AI that we can improve/rewrite better
 
-    For each opportunity provide same format as Section 1.
+    For each opportunity provide (use simple english):
+    - Source (identify if this is from "Reddit" or "Hacker News")
+    - Link (extract from email)
+    - Post title
+    - Subreddit name (for Reddit) OR "Hacker News" (for HN posts)
+    - Brief context (2-3 sentences maximum)
+    - Adaptation Outline (3-4 line outline on how to adapt this content):
+      * Key angle to take
+      * Main points to add/emphasize
+      * How to make it relevant to voice AI (if adapting from another domain)
+    - Priority (High/Medium/Low)
 
     ## Section 4: Blog-Worthy Topics for blog.dograh.com
     Find discussions that would make great blog content:
@@ -90,10 +132,31 @@ f5bot_reddit:
     [Repeat for all opportunities in this section]
 
     # SECTION 2: WORKFLOW OPPORTUNITIES
-    [Same format]
+    ## Opportunity 1
+    - Source: [Reddit or Hacker News]
+    - Link: [url]
+    - Title: [title]
+    - Subreddit: r/[name] OR "Hacker News"
+    - Context: [2-3 sentences]
+    - Comment Draft: [single comment sharing workflow link - helpful/solution-focused tone]
+    - Priority: High/Medium/Low
+
+    [Repeat for all opportunities in this section]
 
     # SECTION 3: CONTENT TO ADAPT
-    [Same format]
+    ## Opportunity 1
+    - Source: [Reddit or Hacker News]
+    - Link: [url]
+    - Title: [title]
+    - Subreddit: r/[name] OR "Hacker News"
+    - Context: [2-3 sentences]
+    - Adaptation Outline:
+      * [Key angle to take]
+      * [Main points to add/emphasize]
+      * [How to make it relevant to voice AI if adapting from another domain]
+    - Priority: High/Medium/Low
+
+    [Repeat for all opportunities in this section]
 
     # SECTION 4: BLOG-WORTHY TOPICS
     ## Topic 1
@@ -107,7 +170,12 @@ f5bot_reddit:
 
     [Repeat for all topics]
 
-    Important: Be selective - prioritize relevance over quantity. High priority means HIGHLY relevant to voice AI/calling.
+    **CRITICAL PRIORITY RULES:**
+    - High priority: 1-5% only (EXTREMELY RARE - perfect opportunities only)
+    - Medium priority: 5-10% only
+    - Low priority: 85-90%+ (VAST MAJORITY - default for most items)
+    - Be EXTREMELY selective with High and Medium priorities
+    - When in doubt → choose Lower priority
 
   user_prompt: |
     Analyze the following Reddit posts from F5bot alerts and identify opportunities across all FOUR sections.
@@ -119,7 +187,12 @@ f5bot_reddit:
     - Provide 1 suggested DM template
     - Focus on voice AI, AI calling, and conversational AI
     - Skip off-topic posts
-    - Be extremely selective with High priority labels
+
+    **PRIORITY DISTRIBUTION (STRICT):**
+    - High priority: 1-5% only (EXTREMELY RARE - perfect voice AI opportunities)
+    - Medium priority: 5-10% only
+    - Low priority: 85-90%+ (VAST MAJORITY - default)
+    - When in doubt → use Lower priority
 
     {email_content}
 
@@ -153,10 +226,33 @@ haro_opportunities:
     # Your Task
     Analyze HARO requests and identify opportunities in **TWO DISTINCT SECTIONS**:
 
+    # PRIORITY DISTRIBUTION (STRICT - FOLLOW THESE PERCENTAGES)
+    **ULTRA CRITICAL:** Journalists HATE irrelevant responses. Most items should be Low priority. Be EXTREMELY conservative.
+
+    - **High Priority: 1-5% of items** (EXTREMELY RARE - only perfect media opportunities)
+      * Journalist is DIRECTLY asking about voice AI or automation
+      * We have PERFECT expertise that exactly matches their query
+      * IMMEDIATE and CRYSTAL CLEAR fit
+      * Would be negligent to ignore
+
+    - **Medium Priority: 5-10% of items** (good opportunities, worth pursuing)
+      * Good relevance to our expertise
+      * Reasonable fit but not perfect
+      * Worth pursuing but not urgent
+
+    - **Low Priority: 85-90%+ of items** (VAST MAJORITY - everything else)
+      * Tangentially relevant
+      * Unclear fit or generic query
+      * Nice-to-have, not must-have
+      * **DEFAULT for most items**
+
+    **DECISION RULES:**
+    - When in doubt between High and Medium → choose Medium
+    - When in doubt between Medium and Low → choose Low
+    - Journalists hate spam → be EXTREMELY selective with High priority
+
     ## Section 1: Relevant Opportunities
     Find HARO requests related to AI, voice technology, automation, business technology, or productivity where our expertise is valuable.
-
-    **CRITICAL:** Only mark as "High" priority if SUPER RELEVANT. Journalists hate irrelevant responses. Be very selective.
 
     For each opportunity provide:
     - Link (extract from email if available)
@@ -215,17 +311,27 @@ haro_opportunities:
 
     [Repeat for all content ideas]
 
-    **IMPORTANT:** Be extremely selective with "High" priority. Only super-relevant opportunities should get this label. Journalists complain about spam. use simple english.
+    **CRITICAL PRIORITY RULES:**
+    - High priority: 1-5% only (EXTREMELY RARE - perfect media opportunities only)
+    - Medium priority: 5-10% only
+    - Low priority: 85-90%+ (VAST MAJORITY - default for most items)
+    - Be EXTREMELY selective with High and Medium priorities
+    - Journalists hate spam - when in doubt → choose Lower priority
 
   user_prompt: |
     Analyze the following HARO requests and identify opportunities across BOTH sections.
 
     Remember:
-    - Only mark High priority if SUPER relevant to voice AI/automation
     - Provide email OUTLINES, not full emails
     - Leave clear placeholders for expert to add their opinion and stats
     - Don't fabricate credentials - we're YC alumni and Exit Founders in voice AI
     - Include publisher context if you know the publication
+
+    **PRIORITY DISTRIBUTION (STRICT):**
+    - High priority: 1-5% only (EXTREMELY RARE - perfect voice AI media opportunities)
+    - Medium priority: 5-10% only
+    - Low priority: 85-90%+ (VAST MAJORITY - default)
+    - Journalists hate irrelevant responses - when in doubt → use Lower priority
 
     {email_content}
 
@@ -292,6 +398,31 @@ bookface_digest:
     Analyze all Bookface emails and identify threads the founder should pursue. Extract links from hyperlinked titles.
 
     Provide analysis in **FIVE DISTINCT SECTIONS** with priority levels for each item:
+
+    # PRIORITY DISTRIBUTION (STRICT - FOLLOW THESE PERCENTAGES)
+    **ULTRA CRITICAL:** Most items should be Low priority. Be EXTREMELY conservative with High and Medium.
+
+    - **High Priority: 1-5% of items** (EXTREMELY RARE - only exceptional, can't-miss opportunities)
+      * DIRECTLY actionable with IMMEDIATE ROI for Dograh AI or autoRM
+      * CRYSTAL CLEAR opportunity or super valuable insight
+      * Highly relevant to voice AI, growth, or automation
+      * Would be negligent to ignore
+
+    - **Medium Priority: 5-10% of items** (good opportunities, worth pursuing)
+      * Good relevance but not perfect
+      * Decent value, reasonable fit
+      * Worth pursuing but not urgent
+
+    - **Low Priority: 85-90%+ of items** (VAST MAJORITY - everything else)
+      * Tangentially relevant
+      * Low ROI or unclear fit
+      * Nice-to-have, not must-have
+      * **DEFAULT for most items**
+
+    **DECISION RULES:**
+    - When in doubt between High and Medium → choose Medium
+    - When in doubt between Medium and Low → choose Low
+    - If not obviously High or Medium → choose Low
 
     ## Section 1: COMMENTING OPPORTUNITIES
     Find threads where the founder can add value by:
@@ -421,7 +552,13 @@ bookface_digest:
 
     [Continue numbered list for all top 2 threads from each email]
 
-    Important: Use simple, informal English. Be extremely selective with High priority. Skip threads that don't fit any section.
+    **CRITICAL PRIORITY RULES:**
+    - High priority: 1-5% only (EXTREMELY RARE - perfect opportunities only)
+    - Medium priority: 5-10% only
+    - Low priority: 85-90%+ (VAST MAJORITY - default for most items)
+    - Be EXTREMELY selective with High and Medium priorities
+    - When in doubt → choose Lower priority
+    - Use simple, informal English
 
   user_prompt: |
     Analyze the following Bookface Forum Digest emails from the last N days.
@@ -431,10 +568,15 @@ bookface_digest:
     - Each email contains 10-20 thread titles (hyperlinked) with 25-30 word previews
     - Threads are ordered by popularity (most popular first)
     - Focus on TOP threads - they have strong engagement for a reason
-    - Assign High/Medium/Low priority to each item (except TOP 2 THREADS section)
-    - Be selective with "High" priority - only for exceptional opportunities
     - Skip threads that don't fit any of the 5 sections
     - Use simple, informal English
+
+    **PRIORITY DISTRIBUTION (STRICT):**
+    - High priority: 1-5% only (EXTREMELY RARE - perfect opportunities for voice AI/automation)
+    - Medium priority: 5-10% only
+    - Low priority: 85-90%+ (VAST MAJORITY - default)
+    - Assign priority to each item (except TOP 2 THREADS section - no priority needed)
+    - When in doubt → use Lower priority
 
     {email_content}
 

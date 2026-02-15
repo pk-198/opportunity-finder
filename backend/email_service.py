@@ -6,7 +6,9 @@ Handles OAuth authentication, email retrieval, and hyperlink preservation.
 import logging
 import os
 import re
-from typing import List, Dict, Optional
+import email.utils  # RFC 2822 date parsing for Gmail message dates
+from datetime import datetime as dt, timezone
+from typing import Any, List, Dict, Optional
 from pathlib import Path
 import base64
 
@@ -106,17 +108,24 @@ def fetch_emails(
     task_id: Optional[str] = None
 ) -> List[Dict[str, str]]:
     """
-    Fetch email THREADS from specific sender with hyperlinks preserved.
-    Each thread may contain multiple messages - all are combined.
+    Fetch INDIVIDUAL MESSAGES from email threads sent by specific sender.
+    **CHANGED**: Now returns individual messages instead of combined threads!
 
     Args:
         sender_email: Email address to filter by (e.g., "admin@f5bot.com")
-        max_results: Maximum number of THREADS to fetch
+        max_results: Maximum number of THREADS to fetch (each thread may contain multiple messages)
         task_id: Optional task ID for logging
 
     Returns:
-        List of thread dictionaries with 'id', 'subject', 'body', 'date', 'message_count' keys
-        Each thread's body contains all messages combined
+        List of INDIVIDUAL MESSAGE dictionaries with keys:
+        - message_id: Unique message identifier
+        - thread_id: Parent thread identifier
+        - message_number: Position in thread (1, 2, 3...)
+        - total_in_thread: Total messages in parent thread
+        - subject: Email subject
+        - from: Sender email address
+        - date: Email date
+        - body: Message body with hyperlinks preserved
 
     Raises:
         Exception: If Gmail API call fails
@@ -140,10 +149,14 @@ def fetch_emails(
         logger.info(f"{log_prefix} [FETCH] Executing threads().list() API call...")
 
         try:
+            # Over-fetch to compensate for Gmail API ordering by matching message date
+            # (threads with user replies get ranked by the older sender message, not the latest reply)
+            fetch_limit = min(max_results * 3, 100)
+            logger.info(f"{log_prefix} [FETCH] Over-fetching {fetch_limit} threads (requested {max_results}) to correct ordering")
             results = service.users().threads().list(
                 userId="me",
                 q=query,
-                maxResults=max_results
+                maxResults=fetch_limit
             ).execute()
             logger.info(f"{log_prefix} [FETCH] ✓ API call successful")
         except Exception as api_error:
@@ -159,9 +172,10 @@ def fetch_emails(
             logger.info(f"{log_prefix} ========== FETCH EMAILS END (No Results) ==========")
             return []
 
-        # Step 3: Fetch full details for each thread
-        logger.info(f"{log_prefix} [FETCH] Step 3: Fetching full details for {len(threads)} threads")
-        thread_data_list = []
+        # Step 3: Fetch full details for each thread and extract INDIVIDUAL MESSAGES
+        logger.info(f"{log_prefix} [FETCH] Step 3: Fetching threads and extracting individual messages")
+        all_messages = []  # Will contain ALL individual messages from ALL threads
+        threads_processed = 0
 
         for i, thread in enumerate(threads, 1):
             thread_id = thread["id"]
@@ -177,17 +191,44 @@ def fetch_emails(
                 ).execute()
                 logger.debug(f"{log_prefix} [FETCH]   ✓ Thread details fetched")
 
-                # Parse thread and extract all messages
-                logger.debug(f"{log_prefix} [FETCH]   → Parsing thread and extracting messages")
-                thread_data = _parse_thread(thread_detail)
-                logger.debug(f"{log_prefix} [FETCH]   ✓ Thread parsed - {thread_data['message_count']} messages, {len(thread_data['body'])} chars")
-                logger.debug(f"{log_prefix} [FETCH]   Subject: {thread_data['subject'][:60]}...")
+                # Extract individual messages from thread (NEW: message-level instead of thread-level)
+                messages = thread_detail.get("messages", [])
+                total_in_thread = len(messages)
+                logger.debug(f"{log_prefix} [FETCH]   → Extracting {total_in_thread} individual messages from thread")
 
-                thread_data_list.append(thread_data)
+                # Get thread subject from first message
+                first_headers = messages[0]["payload"]["headers"] if messages else []
+                thread_subject = next((h["value"] for h in first_headers if h["name"] == "Subject"), "No Subject")
+
+                # Process each message in the thread individually
+                for msg_num, message in enumerate(messages, 1):
+                    msg_headers = message["payload"]["headers"]
+
+                    # Extract message metadata
+                    msg_from = next((h["value"] for h in msg_headers if h["name"] == "From"), sender_email)
+                    msg_date = next((h["value"] for h in msg_headers if h["name"] == "Date"), "Unknown")
+                    msg_body = _extract_body_with_links(message["payload"])
+
+                    # Create individual message object with thread metadata
+                    message_obj = {
+                        "message_id": message["id"],  # Unique message ID
+                        "thread_id": thread_id,  # Parent thread ID
+                        "message_number": msg_num,  # Position in thread (1, 2, 3...)
+                        "total_in_thread": total_in_thread,  # Total messages in thread
+                        "subject": thread_subject,  # Thread subject
+                        "from": msg_from,  # Sender
+                        "date": msg_date,  # Message date
+                        "body": msg_body  # Message body with hyperlinks
+                    }
+
+                    all_messages.append(message_obj)
+
+                threads_processed += 1
+                logger.debug(f"{log_prefix} [FETCH]   ✓ Extracted {total_in_thread} messages from thread {i}")
 
                 # Progress logging every 5 threads
                 if i % 5 == 0:
-                    logger.info(f"{log_prefix} [FETCH] Progress: {i}/{len(threads)} threads fetched ({(i/len(threads)*100):.1f}%)")
+                    logger.info(f"{log_prefix} [FETCH] Progress: {i}/{len(threads)} threads processed ({len(all_messages)} total messages)")
 
             except HttpError as e:
                 logger.error(f"{log_prefix} [FETCH]   ✗ Failed to fetch thread {thread_id}: {e}")
@@ -198,13 +239,51 @@ def fetch_emails(
                 logger.error(f"{log_prefix} [FETCH]   Error type: {type(e).__name__}")
                 continue
 
+        # Sort threads by most recent message date and trim to requested count.
+        # Gmail API orders threads by the date of the matching-sender message, not by
+        # overall thread activity — so threads with recent user replies can appear stale.
+        # We re-sort by the latest message date across all participants to fix this.
+        thread_groups: Dict[str, List[Dict[str, Any]]] = {}  # values contain int fields (message_number, total_in_thread)
+        for msg in all_messages:
+            tid = msg["thread_id"]
+            if tid not in thread_groups:
+                thread_groups[tid] = []
+            thread_groups[tid].append(msg)
+
+        def _latest_date(messages: List[Dict[str, Any]]) -> dt:
+            """Parse RFC 2822 dates from messages, return the most recent one."""
+            latest = None
+            for m in messages:
+                try:
+                    parsed = email.utils.parsedate_to_datetime(m["date"])
+                    if latest is None or parsed > latest:
+                        latest = parsed
+                except Exception:
+                    continue
+            # Use timezone-aware minimum to avoid TypeError when compared with
+            # Gmail's timezone-aware dates during sorted()
+            return latest or dt.min.replace(tzinfo=timezone.utc)
+
+        # Sort by most recent message date (descending) and keep top N threads
+        sorted_threads = sorted(thread_groups.items(), key=lambda x: _latest_date(x[1]), reverse=True)
+        top_threads = sorted_threads[:max_results]
+
+        logger.info(f"{log_prefix} [FETCH] Sorting: {len(thread_groups)} threads fetched → keeping top {len(top_threads)} by latest message date")
+
+        # Flatten back to individual messages, preserving message order within each thread
+        all_messages = []
+        for tid, msgs in top_threads:
+            all_messages.extend(sorted(msgs, key=lambda m: m.get("message_number", 1)))
+
         logger.info(f"{log_prefix} [FETCH] ========== FETCH SUMMARY ==========")
-        logger.info(f"{log_prefix} [FETCH] Total threads found: {len(threads)}")
-        logger.info(f"{log_prefix} [FETCH] Successfully parsed: {len(thread_data_list)}")
-        logger.info(f"{log_prefix} [FETCH] Failed/Skipped: {len(threads) - len(thread_data_list)}")
+        logger.info(f"{log_prefix} [FETCH] Threads from API: {len(threads)} (over-fetched)")
+        logger.info(f"{log_prefix} [FETCH] Successfully processed: {threads_processed}")
+        logger.info(f"{log_prefix} [FETCH] Failed/Skipped: {len(threads) - threads_processed}")
+        logger.info(f"{log_prefix} [FETCH] Threads after sort+trim: {len(top_threads)} (requested {max_results})")
+        logger.info(f"{log_prefix} [FETCH] **TOTAL INDIVIDUAL MESSAGES**: {len(all_messages)}")
         logger.info(f"{log_prefix} ========== FETCH EMAILS END (Success) ==========")
 
-        return thread_data_list
+        return all_messages  # Return individual messages from top N threads by activity
 
     except Exception as e:
         logger.error(f"{log_prefix} [FETCH] ========== FETCH EMAILS FAILED ==========")
@@ -383,21 +462,26 @@ def strip_metadata_with_llm(email_text: str, task_id: Optional[str] = None) -> s
     # System prompt for metadata stripping
     system_prompt = """You are an email cleaning assistant. Your job is to remove email metadata and keep only the actual message content.
 
+**CRITICAL: PRESERVE Thread Separators**
+ALWAYS KEEP separators that look like "--- Message X of Y ---" or similar. These indicate multi-message threads and MUST be preserved!
+
 Remove the following:
 - Email signatures (e.g., "Sent from my iPhone", "Best regards, John Doe")
-- Email headers and technical metadata
-- Timestamps and date stamps (unless part of message content)
-- Threading artifacts and reply indicators
+- Email headers (From:, To:, Subject:, Date: headers at the top)
+- Technical metadata (MIME types, encoding info, message IDs)
 - Automatic footers and disclaimers
 - Unsubscribe links and promotional text
 
 Keep the following:
+- **ALL "--- Message X of Y ---" separators** (CRITICAL - these show conversation flow!)
 - Actual message content and conversation
 - Hyperlinks that are part of the message
 - Questions, answers, and discussion points
 - Technical details and code snippets
+- Reply context and conversation structure
+- Date stamps that are part of thread separators
 
-Return ONLY the cleaned message content. If multiple messages, separate them with "---" ."""
+Return ONLY the cleaned message content WITH all thread separators preserved."""
 
     user_prompt = f"Clean the following email content:\n\n{email_text}"
 
@@ -422,23 +506,30 @@ Return ONLY the cleaned message content. If multiple messages, separate them wit
 
 def combine_emails(emails: List[Dict[str, str]]) -> str:
     """
-    Combine multiple emails/threads into single text block for LLM analysis.
-    Preserves structure and hyperlinks.
+    Combine multiple individual messages into single text block for LLM analysis.
+    **UPDATED**: Now handles individual messages with thread metadata!
 
     Args:
-        emails: List of email/thread dictionaries
+        emails: List of individual message dictionaries (each with thread metadata)
 
     Returns:
-        Combined email text with separators
+        Combined message text with separators and thread context
     """
     combined = []
 
     for i, email in enumerate(emails, 1):
-        combined.append(f"=== EMAIL/THREAD {i} ===")
+        combined.append(f"=== MESSAGE {i} ===")
         combined.append(f"Subject: {email['subject']}")
+        combined.append(f"From: {email.get('from', 'Unknown')}")
         combined.append(f"Date: {email['date']}")
 
-        # Include message count if present (from threads)
+        # Include thread context (NEW: shows which message in which thread)
+        if "thread_id" in email:
+            msg_num = email.get("message_number", 1)
+            total_in_thread = email.get("total_in_thread", 1)
+            combined.append(f"Thread Context: Message {msg_num} of {total_in_thread}")
+
+        # Include old message_count field if present (backward compatibility)
         if "message_count" in email:
             combined.append(f"Messages in thread: {email['message_count']}")
 
@@ -446,6 +537,6 @@ def combine_emails(emails: List[Dict[str, str]]) -> str:
 
     result = "\n".join(combined)
 
-    logger.debug(f"Combined {len(emails)} emails/threads into {len(result)} chars")
+    logger.debug(f"Combined {len(emails)} individual messages into {len(result)} chars")
 
     return result

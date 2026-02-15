@@ -12,12 +12,15 @@ Provides REST API for frontend to trigger analysis and poll for results.
 </system_context>
 
 <critical_notes>
+- **API key required** - `API_KEY` env var must be set or backend refuses to start. All `/api/*` routes require `X-API-Key` header.
+- **CORS lockdown** - Set `CORS_ORIGINS` env var (comma-separated) for production. Falls back to `["*"]` for local dev.
 - **workflow.py is the central orchestrator** - all execution flows through it
 - **Preserve hyperlinks** when extracting email content
 - **180-second timeout** for LLM calls
 - **Extensive logging** at every step with timestamps, task_ids, batch numbers
 - **In-memory only** - no database or file persistence
 - **Error handling**: Skip failed emails, continue processing, return partial results
+- **Over-fetch fix**: `fetch_emails()` requests 3x threads from Gmail API, sorts by latest message date, trims to requested count. Fixes Gmail ordering threads by matching-sender date instead of thread activity.
 </critical_notes>
 
 <file_map>

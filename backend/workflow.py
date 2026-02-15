@@ -35,11 +35,13 @@ def run_analysis_workflow(
 
     FastAPI's BackgroundTasks runs this in a thread pool for non-blocking execution.
 
+    **CHANGED**: Now uses message-level batching instead of thread-level!
+
     Workflow steps:
-    1. Fetch email THREADS from Gmail
-    2. Split into batches
+    1. Fetch INDIVIDUAL MESSAGES from email threads (not combined threads!)
+    2. Split messages into batches
     3. For each batch:
-       - Combine thread emails preserving hyperlinks
+       - Combine individual messages preserving hyperlinks
        - Strip metadata with LLM (LLM Call #1)
        - Analyze with main LLM (LLM Call #2)
        - Parse markdown to JSON (LLM Call #3)
@@ -52,8 +54,8 @@ def run_analysis_workflow(
         sender_id: Sender identifier (e.g., "f5bot")
         sender_email: Email address to fetch from
         prompt_key: Prompt key for LLM analysis
-        email_limit: Maximum number of THREADS to process
-        batch_size: Number of THREADS per batch
+        email_limit: Maximum number of THREADS to fetch (each thread may have multiple messages)
+        batch_size: Number of INDIVIDUAL MESSAGES per batch (NEW: was threads, now messages!)
     """
     logger.info(f"[{task_id}] ========== WORKFLOW START ==========")
     logger.info(f"[{task_id}] Config: sender={sender_id}, email={sender_email}, limit={email_limit}, batch={batch_size}")
@@ -70,21 +72,38 @@ def run_analysis_workflow(
         )
 
         if not emails:
-            logger.warning(f"[{task_id}] No emails found - marking as completed")
+            logger.warning(f"[{task_id}] No messages found - marking as completed")
             task_manager.update_task(
                 task_id,
                 status="completed",
                 progress="0/0",
-                error="No emails found from this sender"
+                error="No messages found from this sender"
             )
             return
 
-        logger.info(f"[{task_id}] Fetched {len(emails)} emails successfully")
+        logger.info(f"[{task_id}] Fetched {len(emails)} individual messages successfully")
 
-        # Step 2: Split emails into batches
+        # Save fetched messages to debug file
+        import os
+        import json
+        from pathlib import Path
+        debug_dir = Path(__file__).parent / "debug_outputs"
+        debug_dir.mkdir(exist_ok=True)
+        debug_file_messages = debug_dir / f"{task_id}_fetched_messages.json"
+        with open(debug_file_messages, "w", encoding="utf-8") as f:
+            json.dump({
+                "task_id": task_id,
+                "sender_email": sender_email,
+                "threads_requested": email_limit,
+                "total_messages_fetched": len(emails),
+                "messages": emails
+            }, f, indent=2, ensure_ascii=False)
+        logger.info(f"[{task_id}] Fetched messages saved to: {debug_file_messages}")
+
+        # Step 2: Split INDIVIDUAL MESSAGES into batches (NEW: message-level batching!)
         batches = _create_batches(emails, batch_size)
         total_batches = len(batches)
-        logger.info(f"[{task_id}] Split into {total_batches} batches of size {batch_size}")
+        logger.info(f"[{task_id}] Split {len(emails)} messages into {total_batches} batches (batch size: {batch_size} messages)")
 
         # Step 3: Load prompts for LLM
         logger.debug(f"[{task_id}] Loading prompts for key: {prompt_key}")
@@ -96,9 +115,29 @@ def run_analysis_workflow(
             logger.info(f"[{task_id}] ===== Processing Batch {batch_num}/{total_batches} =====")
 
             try:
-                # Combine threads in batch preserving hyperlinks
-                logger.debug(f"[{task_id}] Combining {len(batch)} threads")
+                # Combine individual messages in batch preserving hyperlinks
+                logger.debug(f"[{task_id}] Combining {len(batch)} individual messages")
                 combined_emails = email_service.combine_emails(batch)
+
+                # Save combined messages BEFORE metadata stripping (debug file)
+                import os
+                from pathlib import Path
+                debug_dir = Path(__file__).parent / "debug_outputs"
+                debug_dir.mkdir(exist_ok=True)
+                debug_file_combined = debug_dir / f"{task_id}_batch{batch_num}_combined_messages.txt"
+                with open(debug_file_combined, "w", encoding="utf-8") as f:
+                    f.write(f"=== Combined Messages BEFORE Metadata Stripping ===\n")
+                    f.write(f"Task ID: {task_id}\n")
+                    f.write(f"Batch: {batch_num}/{total_batches}\n")
+                    f.write(f"Messages in batch: {len(batch)}\n")
+                    # Count unique threads in batch
+                    unique_threads = len(set(msg.get("thread_id", "") for msg in batch))
+                    f.write(f"Unique threads in batch: {unique_threads}\n")
+                    f.write(f"Combined length: {len(combined_emails)} chars\n")
+                    f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                    f.write(f"\n{'='*60}\n\n")
+                    f.write(combined_emails)
+                logger.info(f"[{task_id}] Combined messages saved to: {debug_file_combined}")
 
                 # Strip metadata using LLM (LLM Call #1)
                 logger.info(f"[{task_id}] Stripping metadata (LLM Call #1)")
@@ -106,6 +145,20 @@ def run_analysis_workflow(
                     email_text=combined_emails,
                     task_id=task_id
                 )
+
+                # Save cleaned emails AFTER metadata stripping (debug file - THE SMOKING GUN!)
+                debug_file_cleaned = debug_dir / f"{task_id}_batch{batch_num}_llm_call1_output.txt"
+                with open(debug_file_cleaned, "w", encoding="utf-8") as f:
+                    f.write(f"=== LLM Call #1 Output (AFTER Metadata Stripping) ===\n")
+                    f.write(f"Task ID: {task_id}\n")
+                    f.write(f"Batch: {batch_num}/{total_batches}\n")
+                    f.write(f"Cleaned length: {len(cleaned_emails)} chars\n")
+                    f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                    f.write(f"\n{'='*60}\n\n")
+                    f.write(f"NOTE: Check if '--- Message X of Y ---' separators are preserved!\n")
+                    f.write(f"\n{'='*60}\n\n")
+                    f.write(cleaned_emails)
+                logger.info(f"[{task_id}] Cleaned emails saved to: {debug_file_cleaned}")
 
                 # Format user prompt with cleaned email content
                 logger.debug(f"[{task_id}] Formatting user prompt with cleaned content")
@@ -160,16 +213,24 @@ def run_analysis_workflow(
                     f.write(parsed_response)
                 logger.info(f"[{task_id}] Parsing output saved to: {debug_file_parsed}")
 
-                # Store batch result with original emails for drawer
+                # Store batch result with original messages for drawer
+                # Count unique threads in this batch
+                unique_threads = len(set(msg.get("thread_id", "") for msg in batch))
+
                 batch_result = {
                     "batch_number": batch_num,
                     "total_batches": total_batches,
-                    "threads_in_batch": len(batch),
+                    "messages_in_batch": len(batch),  # Changed from threads_in_batch
+                    "thread_count_in_batch": unique_threads,  # New: number of unique threads
                     "analysis": parsed_response,  # Store parsed JSON
                     "raw_markdown": llm_response,  # Also keep raw markdown
-                    "original_emails": [  # Store original emails for cross-checking
+                    "original_emails": [  # Store original messages for cross-checking
                         {
                             "subject": email.get("subject", "No Subject"),
+                            "from": email.get("from", "Unknown"),
+                            "thread_id": email.get("thread_id", ""),
+                            "message_number": email.get("message_number", 1),
+                            "total_in_thread": email.get("total_in_thread", 1),
                             "body": email.get("body", ""),
                             "date": email.get("date", "Unknown Date")
                         }
@@ -190,10 +251,12 @@ def run_analysis_workflow(
                 logger.error(f"[{task_id}] Batch {batch_num} failed: {str(e)}")
 
                 # Store error but continue processing
+                unique_threads = len(set(msg.get("thread_id", "") for msg in batch))
                 error_result = {
                     "batch_number": batch_num,
                     "total_batches": total_batches,
-                    "threads_in_batch": len(batch),
+                    "messages_in_batch": len(batch),  # Changed from threads_in_batch
+                    "thread_count_in_batch": unique_threads,  # New field
                     "error": str(e),
                     "processed_at": datetime.now().isoformat()
                 }

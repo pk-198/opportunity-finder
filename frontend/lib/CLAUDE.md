@@ -6,7 +6,8 @@ Provides typed functions for all backend endpoints.
 </system_context>
 
 <critical_notes>
-- **Hardcoded backend URL**: `http://localhost:8000` (no .env file)
+- **Configurable backend URL**: `NEXT_PUBLIC_API_URL` env var, defaults to `http://localhost:8002`
+- **API key auth**: `NEXT_PUBLIC_API_KEY` env var sent as `X-API-Key` header on every request via `commonHeaders`
 - **Typed responses**: All functions return properly typed data
 - **Error handling**: Throw meaningful errors on API failures
 - **Fetch-based**: Uses native fetch API (no axios dependency)
@@ -27,7 +28,7 @@ export async function startAnalysis(
   emailLimit: number,
   batchSize: number
 ): Promise<{ task_id: string; status: string }> {
-  const response = await fetch('http://localhost:8000/api/analyze', {
+  const response = await fetch('http://localhost:8002/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sender_id: senderId, email_limit: emailLimit, batch_size: batchSize })
@@ -37,13 +38,13 @@ export async function startAnalysis(
 
 // Get task status
 export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
-  const response = await fetch(`http://localhost:8000/api/status/${taskId}`);
+  const response = await fetch(`http://localhost:8002/api/status/${taskId}`);
   return response.json();
 }
 
 // Get senders
 export async function getSenders(): Promise<{ senders: Sender[] }> {
-  const response = await fetch('http://localhost:8000/api/senders');
+  const response = await fetch('http://localhost:8002/api/senders');
   return response.json();
 }
 ```

@@ -13,7 +13,10 @@ and viewing results in real-time via polling.
 </system_context>
 
 <critical_notes>
-- **No .env file** - backend URL is hardcoded or uses relative paths
+- **Password-gated** - `AuthGate` component in `layout.tsx` requires password from `NEXT_PUBLIC_ACCESS_PASSWORD` env var. Uses sessionStorage (clears on tab close).
+- **API key auth** - All API calls include `X-API-Key` header from `NEXT_PUBLIC_API_KEY` env var.
+- **Configurable backend URL** - `NEXT_PUBLIC_API_URL` env var (defaults to `http://localhost:8002` if unset).
+- **`.env.local`** - holds `NEXT_PUBLIC_ACCESS_PASSWORD`, `NEXT_PUBLIC_API_KEY`, `NEXT_PUBLIC_API_URL` (not committed to git)
 - **URL-based state** - task_id in URL params, not sessionStorage
 - **15-second polling** - continuous status checks until completion
 - **Minimal UI** - functional, not fancy (Tailwind CSS for basic styling)
@@ -26,6 +29,7 @@ and viewing results in real-time via polling.
 - `app/analysis/page.tsx` - Results page with polling and display
 
 ## Components
+- `app/components/AuthGate.tsx` - Password gate wrapping all pages (sessionStorage-based)
 - `app/components/SenderSelector.tsx` - Dropdown for sender selection
 - `app/components/AnalysisForm.tsx` - Form for email limit and batch size
 - `app/components/ProgressBar.tsx` - Visual progress indicator
@@ -73,7 +77,7 @@ const senders = await getSenders();
 - NEVER use TypeScript `any` - define proper types/interfaces
 - Always handle loading and error states
 - Use URL params for task_id (enables page refresh without losing state)
-- Hardcode backend URL to `http://localhost:8000` or use relative paths
+- Backend URL configurable via `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:8002`)
 - Keep UI minimal and functional - focus on clarity over aesthetics
 - Poll continuously every 15 seconds until task completes
 </must_follow_rules>

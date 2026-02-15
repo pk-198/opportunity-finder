@@ -1,10 +1,17 @@
 /**
  * API client for backend communication.
  * Provides typed functions for all FastAPI endpoints.
+ * Sends X-API-Key header on every request for backend authentication.
  */
 
-// Backend API URL - hardcoded as per requirements (no .env)
-const API_BASE_URL = 'http://localhost:8000';
+// Backend API URL - configurable via env var, defaults to localhost for dev
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+
+// Shared headers sent with every request (API key for backend auth)
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
+const commonHeaders: Record<string, string> = {
+  ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
+};
 
 // Type definitions for API responses
 export interface Sender {
@@ -24,11 +31,16 @@ export interface AnalysisResponse {
 export interface BatchResult {
   batch_number: number;
   total_batches: number;
-  threads_in_batch: number; // Number of email threads in this batch
+  messages_in_batch: number; // Number of individual messages in this batch (CHANGED from threads_in_batch)
+  thread_count_in_batch: number; // Number of unique threads in this batch (NEW field)
   analysis?: string; // JSON string with parsed analysis
   raw_markdown?: string; // Raw markdown output from LLM
-  original_emails?: Array<{ // Original email content for cross-checking
+  original_emails?: Array<{ // Original message content for cross-checking (UPDATED with thread metadata)
     subject: string;
+    from: string; // Sender email address (NEW field)
+    thread_id: string; // Parent thread ID (NEW field)
+    message_number: number; // Position in thread (NEW field)
+    total_in_thread: number; // Total messages in thread (NEW field)
     body: string;
     date: string;
   }>;
@@ -66,6 +78,7 @@ export async function startAnalysis(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...commonHeaders,
     },
     body: JSON.stringify({
       sender_id: senderId,
@@ -90,7 +103,9 @@ export async function startAnalysis(
  * @returns Task status, progress, and results
  */
 export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/status/${taskId}`);
+  const response = await fetch(`${API_BASE_URL}/api/status/${taskId}`, {
+    headers: commonHeaders,
+  });
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -110,7 +125,9 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
  * @returns List of configured senders
  */
 export async function getSenders(): Promise<SendersResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/senders`);
+  const response = await fetch(`${API_BASE_URL}/api/senders`, {
+    headers: commonHeaders,
+  });
 
   if (!response.ok) {
     const error = await response.json();
@@ -142,7 +159,9 @@ export interface TaskMetadata {
  * @returns List of task metadata
  */
 export async function getAllTasks(): Promise<{ tasks: TaskMetadata[] }> {
-  const response = await fetch(`${API_BASE_URL}/api/tasks`);
+  const response = await fetch(`${API_BASE_URL}/api/tasks`, {
+    headers: commonHeaders,
+  });
 
   if (!response.ok) {
     const error = await response.json();

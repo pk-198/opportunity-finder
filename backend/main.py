@@ -1,6 +1,7 @@
 """
 FastAPI application for email analysis service.
 Provides REST API endpoints for triggering analysis and retrieving results.
+Protected by API key middleware (X-API-Key header required on all /api/* routes).
 """
 
 import logging
@@ -10,14 +11,24 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import uvicorn
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# --- API Key Protection ---
+# Backend refuses to start without API_KEY set
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    raise ValueError(
+        "API_KEY environment variable is required. "
+        "Set it in backend/.env or export it before starting the server."
+    )
 
 # Internal service imports
 import workflow
@@ -125,14 +136,28 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware for frontend communication
+# CORS: use CORS_ORIGINS env var (comma-separated) or fall back to allow-all for local dev
+cors_origins_env = os.getenv("CORS_ORIGINS")
+cors_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()] if cors_origins_env else ["*"]
+logger.info(f"CORS origins: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins (configure for production)
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def verify_api_key(request: Request, call_next):
+    """Reject /api/* requests missing a valid X-API-Key header."""
+    if request.url.path.startswith("/api/"):
+        key = request.headers.get("X-API-Key")
+        if key != API_KEY:
+            return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})
+    return await call_next(request)
 
 
 # API Endpoints
@@ -302,5 +327,5 @@ async def health_check() -> Dict[str, str]:
 
 # Run server if executed directly
 if __name__ == "__main__":
-    logger.info("Starting FastAPI server on http://localhost:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    logger.info("Starting FastAPI server on http://localhost:8002")
+    uvicorn.run(app, host="0.0.0.0", port=8002, log_level="info")

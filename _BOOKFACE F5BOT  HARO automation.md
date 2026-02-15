@@ -1,0 +1,1 @@
+THis project automates screeenign the f5bot email (reddit and Hacker news) and HARO emails and BOOKFACE DIGEST emails

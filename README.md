@@ -1,3 +1,12 @@
+# to run
+## venv here and uses 3002 and 8002 ports
+cd backend
+source venv/bin/activate
+python main.py
+
+cd frontend
+npm run dev
+
 # Gmail Email Analysis Automation
 
 An internal tool that analyzes Gmail emails from specific senders (F5bot Reddit alerts, HARO requests) using LLM prompts and displays actionable insights in real-time on a web interface.
@@ -198,7 +207,7 @@ Identify engagement opportunities where Dograh AI can be promoted or provide val
 
    You should see:
    ```
-   INFO:     Uvicorn running on http://0.0.0.0:8000
+   INFO:     Uvicorn running on http://0.0.0.0:8002
    ```
 
 4. **First-time Gmail OAuth**:
@@ -224,12 +233,12 @@ Identify engagement opportunities where Dograh AI can be promoted or provide val
    You should see:
    ```
    ▲ Next.js 14.1.0
-   - Local:        http://localhost:3000
+   - Local:        http://localhost:3002
    ```
 
 ### Test the Application
 
-1. **Open browser**: Navigate to http://localhost:3000
+1. **Open browser**: Navigate to http://localhost:3002
 
 2. **Select a sender** from the dropdown:
    - F5bot Reddit Alerts
@@ -252,7 +261,7 @@ Identify engagement opportunities where Dograh AI can be promoted or provide val
 
 ## 🔍 API Endpoints
 
-### Backend API (http://localhost:8000)
+### Backend API (http://localhost:8002)
 
 1. **POST /api/analyze** - Start analysis
    ```json
@@ -335,7 +344,7 @@ sender_prompt:
 ### Frontend Issues
 
 1. **API Connection Error**:
-   - Ensure backend is running on port 8000
+   - Ensure backend is running on port 8002
    - Check CORS is enabled (already configured)
 
 2. **TypeScript Errors**:
@@ -391,7 +400,7 @@ const intervalId = setInterval(() => {
 
 1. **Run the backend**: `python backend/main.py`
 2. **Run the frontend**: `npm run dev` (in frontend directory)
-3. **Open browser**: http://localhost:3000
+3. **Open browser**: http://localhost:3002
 4. **Select sender and analyze emails**
 5. **View results incrementally**
 

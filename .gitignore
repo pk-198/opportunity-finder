@@ -34,3 +34,6 @@ must_follow_rules.md
 todo.md
 backend/test_compatibility.py
 CLEANUP_SUMMARY.md
+
+# Claude Code session data
+.claude/
